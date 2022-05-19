@@ -15,7 +15,7 @@ else:
     from mitmproxy.net.http import Headers
 
 
-scf_servers: List[str] = []
+scf_servers: List[str] = ["https://proxy-fc-proxhangzhou-qxdlrwmkbb.cn-hangzhou.fcapp.run"]
 SCF_TOKEN = "Token"
 
 

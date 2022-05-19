@@ -9,24 +9,11 @@ pip3 install -r requirements.txt
 
 ## 项目配置
 ### 函数配置
-1. 开通[腾讯云函数服务](https://console.cloud.tencent.com/scf/list)
-2. 在 函数服务 > 新建 中使用自定义创建，函数名称及地域任选，运行环境选择 Python3.6。
-![函数创建](img/create_function.png)
+开通阿里云函数 FC, 在你想要的地区创建 HTTP 触发器触发的云函数, 将 server.py 的内容复制到 index.py 中, 点击部署.
 
-3. 修改 server.py 中的 `SCF_TOKEN` 为随机值（该值将用于鉴权），并将相同的值填入 client.py 中的 `SCF_TOKEN`，将 server.py 代码复制粘贴到编辑器中。
-4. 点击完成
-5. 如需更多 ip 数，可重复上述步骤创建函数服务，地域选择不同区域。
-![地区列表](img/regions.png)
+记录下函数的公网访问地址, 填写进 client.py 中. (建议同时修改 Token.)
 
-### 触发器配置
-1. 成功创建函数后进入 触发管理，创建触发器
-![触发器](img/trigger.jpg)
-
-
-2. 触发方式选择 API 网关触发，其他保持不变即可
-![网关](img/gateway.jpg)
-
-3. 将触发器中的访问路径添加至 client.py 中 `scf_servers` 变量中，以逗号 `,` 分隔。
+可以在多个地区部署多个云函数, 同时使用多个地址.
 
 
 ## 客户端配置
@@ -43,18 +30,12 @@ mitmdump -s client.py -p 8081 --no-http2
 mitmdump -s client.py -p 8081 --no-http2 --set block_global=false
 ```
 
-## 效果
-挂上代理获取当前 ip:
-![ip](img/ip.png)
-查询 ipinfo 为腾讯的服务器:
-![tencent](img/tencent.png)
-
 ### ip 数量
-经测试，单个地区服务器 200 个请求分配 ip 数量在 60-70 左右。
+经测试，单个地区服务器 200 个请求分配 ip 数量在 50 左右。
 
 ## 限制
 1. 请求与响应流量包不能大于 6M
-2. 云函数操作最大超时限制默认为 3 秒，可在云函数环境配置中修改执行超时时间
+2. 可在云函数环境配置中修改执行超时时间
 3. 因云函数限制不能进行长连接，仅支持代理 HTTP 流量
 
 ## 免责声明

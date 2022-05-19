@@ -9,41 +9,33 @@ import requests
 SCF_TOKEN = "Token"
 
 
-def authorization():
-    return {
-        "isBase64Encoded": False,
-        "statusCode": 401,
-        "headers": {},
-        "body": "Please provide correct SCF-Token",
-    }
-
-
-def main_handler(event: dict, context: dict):
-    # Tencent cloud has its own authorization system https://console.cloud.tencent.com/cam/capi
-    # But it may be a little overqualified for a simple usage like this
+def handler(environ: dict, start_response):
     try:
-        token = event["headers"]["scf-token"]
-    except KeyError:
-        return authorization()
+        token = environ["HTTP_SCF_TOKEN"]
+        assert token == SCF_TOKEN, "Invalid token."
+    except:
+        status = '403 Forbidden'
+        response_headers = [('Content-type', 'text/json')]
+        start_response(status, response_headers)
+        return []
 
-    if token != SCF_TOKEN:
-        return authorization()
+    try:
+        request_body_size = int(environ.get('CONTENT_LENGTH', 0))
+    except (ValueError):
+        request_body_size = 0
+    request_body = environ['wsgi.input'].read(request_body_size)
 
-    data = event["body"]
-    kwargs = json.loads(data)
+    kwargs = json.loads(request_body.decode("utf-8"))
     kwargs['data'] = b64decode(kwargs['data'])
     # Prohibit automatic redirect to avoid network errors such as connection reset
     r = requests.request(**kwargs, verify=False, allow_redirects=False)
-
 
     # TODO: REFACTOR NEEDED. Return response headers and body directly.
     # There are many errors occured when setting headers to r.headers with some aujustments(https://cloud.tencent.com/document/product/583/12513).
     # and the response `r.content`/`r.raw.read()` to body.(like gzip error)
     serialized_resp = pickle.dumps(r)
 
-    return {
-        "isBase64Encoded": False,
-        "statusCode": 200,
-        "headers": {},
-        "body": b64encode(serialized_resp).decode("utf-8"),
-    }
+    status = '200 OK'
+    response_headers = [('Content-type', 'text/json')]
+    start_response(status, response_headers)
+    return [b64encode(serialized_resp)]
