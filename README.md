@@ -6,4 +6,4 @@
 ## 原理
 详细原理参见文章[浅谈云函数的利用面](https://xz.aliyun.com/t/9502)
 
-我的博客[相关链接](https://blog.lyc8503.site/post/sfc-proxy-pool/)
+我的博客[相关链接](https://blog.lyc8503.net/post/sfc-proxy-pool/)
