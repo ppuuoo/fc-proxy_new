@@ -11,6 +11,16 @@ mitmdump -s client.py -p 9998 --no-http2 -v --listen-host 127.0.0.1
 远程代理：
 mitmdump -s client.py -p 9998 --no-http2 --set block_global=false -v --listen-host 0.0.0.0
 
+linux 证书配置
+cp ~/.mitmproxy/mitmproxy-ca-cert.pem /usr/local/share/ca-certificates/mitmproxy.crt
+update-ca-certificates
+
+docker 证书配置
+
+docker cp ./mitmproxy-ca-cert.pem adoring_hugle:/usr/local/share/ca-certificates/mitmproxy.crt
+docker exec -it adoring_hugle /bin/bash -i
+update-ca-certificates
+
 ## 原理
 详细原理参见文章[浅谈云函数的利用面](https://xz.aliyun.com/t/9502)
 
