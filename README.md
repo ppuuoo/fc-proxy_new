@@ -11,6 +11,9 @@ mitmdump -s client.py -p 9998 --no-http2 -v --listen-host 127.0.0.1
 远程代理：
 mitmdump -s client.py -p 9998 --no-http2 --set block_global=false -v --listen-host 0.0.0.0
 
+远程代理+账号密码认证：
+mitmdump -s client.py -p 9998 --no-http2 --set block_global=false -v --proxyauth 123a:123a --listen-host 0.0.0.0 
+
 linux 证书配置
 cp ~/.mitmproxy/mitmproxy-ca-cert.pem /usr/local/share/ca-certificates/mitmproxy.crt
 update-ca-certificates
