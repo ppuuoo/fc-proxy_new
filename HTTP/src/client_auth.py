@@ -5,55 +5,61 @@ from random import choice
 from urllib.parse import urlparse
 from base64 import b64encode, b64decode
 
-import mitmproxy
+from mitmproxy import http, ctx
 from mitmproxy.version import VERSION
 
+# 兼容 mitmproxy v6/v7+
 if int(VERSION[0]) > 6:
     from mitmproxy.http import Headers
 else:
     from mitmproxy.net.http import Headers
 
-
-scf_servers: List[str] = ["https://xxx"]
+# 云函数服务列表
+scf_servers: List[str] = ["https://xxx.run"]
 SCF_TOKEN = "Token"
 
-# 设定代理认证的账号密码
+# 代理账号密码
 PROXY_USERNAME = "123a"
 PROXY_PASSWORD = "123a"
 
-
-def request(flow: mitmproxy.http.HTTPFlow):
-    # 获取代理认证头
-    auth_header = flow.request.headers.get("Proxy-Authorization")
+# ========== 认证处理逻辑 ==========
+def check_proxy_auth(auth_header: str) -> bool:
     if not auth_header:
-        flow.response = mitmproxy.http.Response.make(
-            407,  # Proxy Authentication Required
-            b"Proxy Authentication Required",
-            {"Proxy-Authenticate": "Basic realm=\"mitmproxy\""},
-        )
-        return
-
-    # 解析 `Proxy-Authorization` 头
+        return False
     try:
         auth_type, credentials = auth_header.split(" ", 1)
         if auth_type.lower() != "basic":
-            raise ValueError("Invalid auth type")
-
-        decoded_credentials = b64decode(credentials).decode("utf-8")
-        username, password = decoded_credentials.split(":", 1)
-
-        if username != PROXY_USERNAME or password != PROXY_PASSWORD:
-            raise ValueError("Invalid credentials")
-
+            return False
+        decoded = b64decode(credentials).decode()
+        username, password = decoded.split(":", 1)
+        return username == PROXY_USERNAME and password == PROXY_PASSWORD
     except Exception:
-        flow.response = mitmproxy.http.Response.make(
-            407,  # Proxy Authentication Required
-            b"Invalid Proxy Credentials",
-            {"Proxy-Authenticate": "Basic realm=\"mitmproxy\""},
-        )
-        return
+        return False
 
-    # 代理认证通过，继续处理请求
+# ========== HTTPS CONNECT 请求认证 ==========
+def http_connect(flow: http.HTTPFlow):
+    auth_header = flow.request.headers.get("Proxy-Authorization")
+    if not check_proxy_auth(auth_header):
+        flow.response = http.Response.make(
+            407,
+            b"Proxy Authentication Required",
+            {"Proxy-Authenticate": 'Basic realm="mitmproxy"'}
+        )
+
+# ========== HTTP 请求处理 ==========
+def request(flow: http.HTTPFlow):
+    # 仅对明文 HTTP 请求进行认证（HTTPS 已在 http_connect 中处理）
+    if flow.request.scheme == "http":
+        auth_header = flow.request.headers.get("Proxy-Authorization")
+        if not check_proxy_auth(auth_header):
+            flow.response = http.Response.make(
+                407,
+                b"Proxy Authentication Required",
+                {"Proxy-Authenticate": 'Basic realm="mitmproxy"'}
+            )
+            return
+
+    # 转发请求到云函数
     scf_server = choice(scf_servers)
     r = flow.request
     data = {
@@ -81,10 +87,10 @@ def request(flow: mitmproxy.http.HTTPFlow):
         },
     )
 
-
-def response(flow: mitmproxy.http.HTTPFlow):
+# ========== 云函数返回响应解析 ==========
+def response(flow: http.HTTPFlow):
     if flow.response.status_code != 200:
-        mitmproxy.ctx.log.warn("Error")
+        ctx.log.warn("Cloud function error: %d" % flow.response.status_code)
 
     if flow.response.status_code == 401:
         flow.response.headers = Headers(content_type="text/html;charset=utf-8")
@@ -96,15 +102,19 @@ def response(flow: mitmproxy.http.HTTPFlow):
         return
 
     if flow.response.status_code == 200:
-        body = flow.response.content.decode("utf-8")
-        resp = pickle.loads(b64decode(body))
-
-        r = flow.response.make(
-            status_code=resp.status_code,
-            headers=dict(resp.headers),
-            content=resp.content,
-        )
-        if resp.headers.get("Content-Encoding"):
-            r.headers.insert(-1, "Content-Encoding", resp.headers["Content-Encoding"])
-
-        flow.response = r
+        try:
+            body = flow.response.content.decode("utf-8")
+            resp = pickle.loads(b64decode(body))
+            r = http.Response.make(
+                status_code=resp.status_code,
+                headers=dict(resp.headers),
+                content=resp.content,
+            )
+            if "Content-Encoding" in resp.headers:
+                r.headers["Content-Encoding"] = resp.headers["Content-Encoding"]
+            flow.response = r
+        except Exception as e:
+            ctx.log.error(f"Failed to parse cloud response: {e}")
+            flow.response = http.Response.make(
+                502, b"Invalid response from cloud function"
+            )
