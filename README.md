@@ -24,6 +24,9 @@ docker cp ./mitmproxy-ca-cert.pem adoring_hugle:/usr/local/share/ca-certificates
 docker exec -it adoring_hugle /bin/bash -i
 update-ca-certificates
 
+curl 去验证是否认证成功
+curl -x http://123a:123a@ip:8888 http://ip.me
+
 ## 原理
 详细原理参见文章[浅谈云函数的利用面](https://xz.aliyun.com/t/9502)
 
