@@ -20,9 +20,7 @@ update-ca-certificates
 
 docker 证书配置
 
-docker cp ./mitmproxy-ca-cert.pem adoring_hugle:/usr/local/share/ca-certificates/mitmproxy.crt
-docker exec -it adoring_hugle /bin/bash -i
-update-ca-certificates
+docker cp /root/.mitmproxy/mitmproxy-ca-cert.pem 3f7049bba817:/usr/local/share/ca-certificates/mitmproxy.crt && docker exec -it 3f7049bba817 /bin/bash -i update-ca-certificates 
 
 curl 去验证是否认证成功
 curl -x http://123a:123a@ip:8888 http://ip.me
